@@ -14,7 +14,7 @@
 Built upon 2D-doubly linked list  
 Each node contains information of pixel at that position    
 
-2. Image Filler
-![image](/pa2/images/bfsnegative.gif) ![image](/pa2/images/defnegative.gif)  
+2. Image Filler  
+![image](/pa2/images/bfsnegative.gif)![image](/pa2/images/dfsnegative.gif)  
 Part1: Build Stack, Queue and PriorityNeighbour  
 Part2: Use BFS/DFS traversing method to fill image with colour picked with appropriate colourPicker start at seedpoint.
