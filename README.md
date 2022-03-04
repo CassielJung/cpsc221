@@ -10,7 +10,7 @@
 
 ## Programming Assignments (PA)
 1. ImgList
-![image](https://user-images.githubusercontent.com/69894554/156712130-dac0b1c7-7d60-4db2-b826-2d0d816ddee4.png)
+![image](https://user-images.githubusercontent.com/69894554/156712130-dac0b1c7-7d60-4db2-b826-2d0d816ddee4.png)  
 Built upon 2D-doubly linked list  
 Each node contains information of pixel at that position    
 
