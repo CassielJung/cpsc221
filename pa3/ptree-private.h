@@ -9,6 +9,9 @@
 #ifndef _PTREE_PRIVATE_H_
 #define _PTREE_PRIVATE_H_
 
+#include "cs221util/PNG.h"
+#include "cs221util/HSLAPixel.h"
+
 /////////////////////////////////////////////////
 // DEFINE YOUR PRIVATE MEMBER FUNCTIONS HERE
 //
@@ -20,6 +23,6 @@
 //
 /////////////////////////////////////////////////
 
-
+HSLAPixel getAvg(PNG& im, pair<unsigned int, unsigned int> ul, unsigned int w, unsigned int h);
 
 #endif

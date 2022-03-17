@@ -8,12 +8,47 @@
 
 #include "ptree.h"
 #include "hue_utils.h" // useful functions for calculating hue averages
+#include "ptree-private.h" // helper functions
 
 using namespace cs221util;
 using namespace std;
 
 // The following definition may be convenient, but is not necessary to use
 typedef pair<unsigned int, unsigned int> pairUI;
+
+/////////////////////////////////
+// Personal private helper functions
+/////////////////////////////////
+HSLAPixel getAvg(PNG& im, pair<unsigned int, unsigned int> ul, unsigned int w, unsigned int h) {
+  double avghX, avghY, avgH, avgS, avgL;
+  double sumhX = 0, sumhY = 0, sumS = 0, sumL = 0;
+  unsigned int numPixel = 0;
+
+  HSLAPixel* curr;
+  // iterate through every pixel in the valid region
+  for (unsigned int x = ul.first; x < w+ul.first; x++) {
+    for (unsigned int y = ul.second; y < h+ul.second; y++) {
+      curr = im.getPixel(x, y);
+
+      // get sum of each component
+      sumhX += Deg2X(curr->h);
+      sumhY += Deg2Y(curr->h);
+      sumS += curr->s;
+      sumL += curr->l;
+
+      numPixel++;
+    }
+  }
+
+  // get average
+  avghX = sumhX / numPixel;
+  avghY = sumhY / numPixel;
+  avgH = XY2Deg(avghX, avghY);
+  avgS = sumS / numPixel;
+  avgL = sumL / numPixel;
+
+  return HSLAPixel(avgH, avgS, avgL);
+}
 
 /////////////////////////////////
 // PTree private member functions
@@ -54,8 +89,35 @@ void PTree::Copy(const PTree& other) {
 *  RETURN: pointer to the fully constructed Node
 */
 Node* PTree::BuildNode(PNG& im, pair<unsigned int, unsigned int> ul, unsigned int w, unsigned int h) {
-  // replace the line below with your implementation
-  return nullptr;
+  // get average colour
+  HSLAPixel avgc = getAvg(im, ul, w, h);
+
+  // create current node (A,B are nullptr)
+  Node* curr = new Node(ul, w, h, avgc);
+
+  // If current node is the leaf(single pixel) skip building child
+  if (w != 1 && h != 1) {
+    // get width and height of child
+    unsigned int wA, hA, wB, hB;
+    pair<unsigned int, unsigned int> ulB;
+    if (h > w) { // if height > width, tile vertically
+      wA = w; wB = w;
+      hA = h / 2;
+      hB = h - hA;
+      ulB = make_pair(ul.first, ul.second + hA);
+    } else { // if width >= height, tile horizontally
+      hA = h; hB = h;
+      wA = w / 2;
+      wB = w - wA;
+      ulB = make_pair(ul.first + wA, ul.second);
+    }
+
+    // call BuildNode recursively to create child
+    curr->A = BuildNode(im, ul, wA, hA);
+    curr->B = BuildNode(im, ulB, wB, hB);
+  }
+
+  return curr;
 }
 
 ////////////////////////////////
@@ -109,7 +171,7 @@ Node* PTree::BuildNode(PNG& im, pair<unsigned int, unsigned int> ul, unsigned in
 */
 PTree::PTree(PNG& im) {
   // add your implementation below
-  
+  root = BuildNode(im, make_pair(0, 0), im.width(), im.height());
 }
 
 /*
