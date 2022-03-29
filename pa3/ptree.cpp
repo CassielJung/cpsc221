@@ -17,40 +17,6 @@ using namespace std;
 typedef pair<unsigned int, unsigned int> pairUI;
 
 /////////////////////////////////
-// Personal private helper functions
-/////////////////////////////////
-HSLAPixel getAvg(PNG& im, pair<unsigned int, unsigned int> ul, unsigned int w, unsigned int h) {
-  double avghX, avghY, avgH, avgS, avgL;
-  double sumhX = 0, sumhY = 0, sumS = 0, sumL = 0;
-  unsigned int numPixel = 0;
-
-  HSLAPixel* curr;
-  // iterate through every pixel in the valid region
-  for (unsigned int x = ul.first; x < w+ul.first; x++) {
-    for (unsigned int y = ul.second; y < h+ul.second; y++) {
-      curr = im.getPixel(x, y);
-
-      // get sum of each component
-      sumhX += Deg2X(curr->h);
-      sumhY += Deg2Y(curr->h);
-      sumS += curr->s;
-      sumL += curr->l;
-
-      numPixel++;
-    }
-  }
-
-  // get average
-  avghX = sumhX / numPixel;
-  avghY = sumhY / numPixel;
-  avgH = XY2Deg(avghX, avghY);
-  avgS = sumS / numPixel;
-  avgL = sumL / numPixel;
-
-  return HSLAPixel(avgH, avgS, avgL);
-}
-
-/////////////////////////////////
 // PTree private member functions
 /////////////////////////////////
 
@@ -60,8 +26,7 @@ HSLAPixel getAvg(PNG& im, pair<unsigned int, unsigned int> ul, unsigned int w, u
 *  POST: all nodes allocated into the heap have been released.
 */
 void PTree::Clear() {
-  // add your implementation below
-  
+  Clear(root);
 }
 
 /*
@@ -73,8 +38,7 @@ void PTree::Clear() {
 *  POST:  This PTree is a physically separate copy of the other PTree.
 */
 void PTree::Copy(const PTree& other) {
-  // add your implementation below
-  
+  Copy(root, other.root);
 }
 
 /*
@@ -96,7 +60,7 @@ Node* PTree::BuildNode(PNG& im, pair<unsigned int, unsigned int> ul, unsigned in
   Node* curr = new Node(ul, w, h, avgc);
 
   // If current node is the leaf(single pixel) skip building child
-  if (w != 1 && h != 1) {
+  if (w != 1 || h != 1) {
     // get width and height of child
     unsigned int wA, hA, wB, hB;
     pair<unsigned int, unsigned int> ulB;
@@ -170,7 +134,6 @@ Node* PTree::BuildNode(PNG& im, pair<unsigned int, unsigned int> ul, unsigned in
 *  POST:  The newly constructed tree contains the PNG's pixel data in each leaf node.
 */
 PTree::PTree(PNG& im) {
-  // add your implementation below
   root = BuildNode(im, make_pair(0, 0), im.width(), im.height());
 }
 
@@ -182,8 +145,7 @@ PTree::PTree(PNG& im) {
 *  POST:  This tree is constructed as a physically separate copy of other tree.
 */
 PTree::PTree(const PTree& other) {
-  // add your implementation below
-  
+  Copy(other);
 }
 
 /*
@@ -197,7 +159,13 @@ PTree::PTree(const PTree& other) {
 *         Otherwise, there is no change to this tree.
 */
 PTree& PTree::operator=(const PTree& other) {
-  // add your implementation below
+  // if this and &other is different in memory
+  if (this != &other) {
+    // deallocate all dynamic memory in this
+    Clear();
+    // then copy other
+    Copy(other);
+  }
 
   return *this;
 }
@@ -207,8 +175,7 @@ PTree& PTree::operator=(const PTree& other) {
 *  Deallocates all dynamic memory associated with the tree and destroys this PTree object.
 */
 PTree::~PTree() {
-  // add your implementation below
-  
+  Clear();
 }
 
 /*
@@ -223,9 +190,15 @@ PTree::~PTree() {
 *  RETURN: A PNG image of appropriate dimensions and coloured using the tree's leaf node colour data
 */
 PNG PTree::Render() const {
-  // replace the line below with your implementation
-  return PNG();
+  // get PNG with full dimension
+  PNG output;
+  output.resize(root->width, root->height);
+
+  Render(output, root);
+
+  return output;
 }
+
 
 /*
 *  Trims subtrees as high as possible in the tree. A subtree is pruned
@@ -244,8 +217,7 @@ PNG PTree::Render() const {
 *        Each pruned subtree's root becomes a leaf node.
 */
 void PTree::Prune(double tolerance) {
-  // add your implementation below
-  
+  Prune(root, tolerance, root->avg);
 }
 
 /*
@@ -255,8 +227,7 @@ void PTree::Prune(double tolerance) {
 *  You may want to add a recursive helper function for this!
 */
 int PTree::Size() const {
-  // replace the line below with your implementation
-  return -1;
+  return Size(root);
 }
 
 /*
@@ -266,8 +237,7 @@ int PTree::Size() const {
 *  You may want to add a recursive helper function for this!
 */
 int PTree::NumLeaves() const {
-  // replace the line below with your implementation
-  return -1;
+  return NumLeaves(root);
 }
 
 /*
@@ -282,8 +252,7 @@ int PTree::NumLeaves() const {
 *  POST: Tree has been modified so that a rendered PNG will be flipped horizontally.
 */
 void PTree::FlipHorizontal() {
-  // add your implementation below
-  
+  FlipHorizontal(root, root->width);  
 }
 
 /*
@@ -298,8 +267,7 @@ void PTree::FlipHorizontal() {
 *  POST: Tree has been modified so that a rendered PNG will be flipped vertically.
 */
 void PTree::FlipVertical() {
-  // add your implementation below
-  
+  FlipVertical(root, root->height);  
 }
 
 /*
@@ -314,3 +282,153 @@ Node* PTree::GetRoot() {
 // PERSONALLY DEFINED PRIVATE MEMBER FUNCTIONS
 //////////////////////////////////////////////
 
+/* Find average colour of image block */
+HSLAPixel PTree::getAvg(PNG& im, pair<unsigned int, unsigned int> ul, unsigned int w, unsigned int h) {
+  double avghX, avghY, avgH, avgS, avgL;
+  double sumhX = 0, sumhY = 0, sumS = 0, sumL = 0;
+  unsigned int numPixel = 0;
+
+  HSLAPixel* curr;
+  // iterate through every pixel in the valid region
+  for (unsigned int x = ul.first; x < w+ul.first; x++) {
+    for (unsigned int y = ul.second; y < h+ul.second; y++) {
+      curr = im.getPixel(x, y);
+
+      // get sum of each component
+      sumhX += Deg2X(curr->h);
+      sumhY += Deg2Y(curr->h);
+      sumS += curr->s;
+      sumL += curr->l;
+
+      numPixel++;
+    }
+  }
+
+  // get average
+  avghX = sumhX / numPixel;
+  avghY = sumhY / numPixel;
+  avgH = XY2Deg(avghX, avghY);
+  avgS = sumS / numPixel;
+  avgL = sumL / numPixel;
+
+  return HSLAPixel(avgH, avgS, avgL);
+}
+
+/* Recursively find size(number of nodes) of tree */
+int PTree::Size(Node* curr) const {
+  if (curr == NULL) {
+    return 0;
+  }
+
+  return Size(curr->A) + Size(curr->B) + 1;
+}
+
+/* Recursively find number of leaves of tree */
+int PTree::NumLeaves(Node* curr) const {
+  if (curr->A == NULL && curr->B == NULL) {
+    return 1;
+  }
+  return NumLeaves(curr->A) + NumLeaves(curr->B);
+}
+
+/* Recursively delete all dynamically allocated memory of subtree */
+void PTree::Clear(Node*& curr) {
+  if (curr == NULL) {
+    return;
+  }
+
+  Clear(curr->A);
+  Clear(curr->B);
+
+  delete[] curr;
+  curr = NULL;
+}
+
+/* Recursively copy parameters from other to orig */
+void PTree::Copy(Node*& orig, const Node* other) {
+  if (other == NULL) {
+    return;
+  }
+
+  // if orig is NULL, create a new node with other's parameter
+  orig = new Node(other->upperleft, other->width, other->height, other->avg);
+  
+  // copy child of other recursively
+  Copy(orig->A, other->A);
+  Copy(orig->B, other->B);
+}
+
+/* Recursively fill output pixel */
+void PTree::Render(PNG& output, Node* curr) const {
+  if (curr->A == NULL && curr->B == NULL) {
+    unsigned int ulX = (curr->upperleft).first;
+    unsigned int ulY = (curr->upperleft).second;
+    
+    for (unsigned int x = ulX; x < (curr->width)+ulX; x++) {
+      for (unsigned int y = ulY; y < (curr->height)+ulY; y++) {
+        HSLAPixel *p = output.getPixel(x, y);
+        p->h = curr->avg.h;
+        p->s = curr->avg.s;
+        p->l = curr->avg.l;
+        p->a = curr->avg.a;
+      }
+    }
+
+    return;
+  }
+
+  Render(output, curr->A);
+  Render(output, curr->B);
+}
+
+/* Prune subtree recursively */
+void PTree::Prune(Node* curr, double tolerance, const HSLAPixel& avgRoot) {
+  if (curr == NULL) {
+    return;
+  }
+
+  // if we need to prune curr, Clear its subtree
+  if (shouldPrune(curr, tolerance, avgRoot)) {
+    Clear(curr->A);
+    Clear(curr->B);
+  } else { // else prune their child
+    Prune(curr->A, tolerance, curr->A->avg);
+    Prune(curr->B, tolerance, curr->B->avg);
+  }
+}
+
+/* Check if subtree should be pruned */
+bool PTree::shouldPrune(Node* curr, double tolerance, const HSLAPixel& avgRoot) {
+  // if curr is leaf check colour difference
+  if (curr->A == NULL && curr->B == NULL) {
+    return (avgRoot.dist(curr->avg) <= tolerance);
+  }
+
+  return (shouldPrune(curr->A, tolerance, avgRoot) & shouldPrune(curr->B, tolerance, avgRoot));
+}
+
+/* Recursively modify leaves upperleft coordinate (modify x coordinate only) */
+void PTree::FlipHorizontal(Node* curr, unsigned int wOrig) {
+  if (curr == NULL) {
+    return;
+  }
+
+  unsigned int upperRightX = curr->upperleft.first + curr->width - 1;
+  curr->upperleft.first = wOrig-1-upperRightX;
+
+  FlipHorizontal(curr->A, wOrig);
+  FlipHorizontal(curr->B, wOrig);
+}
+
+/* Recursively modify leaves upperleft coordinate (modify y coordinate only) */
+void PTree::FlipVertical(Node* curr, unsigned int hOrig) {
+  if (curr == NULL) {
+    return;
+  }
+
+  unsigned int lowerleftY = curr->upperleft.second + curr->height - 1;
+  curr->upperleft.second = hOrig-1-lowerleftY;
+
+  FlipVertical(curr->A, hOrig);
+  FlipVertical(curr->B, hOrig);
+}

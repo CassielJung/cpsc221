@@ -299,7 +299,7 @@ TEST_CASE("PTree::Render", "[weight=1][part=ptree]") {
   PNG source;
   source.readFromFile("originals/kkkk-256x224.png");
 
-  // call the tree constructor
+  //call the tree constructor
   PTree tree(source);
 
   PNG output = tree.Render();
@@ -307,6 +307,34 @@ TEST_CASE("PTree::Render", "[weight=1][part=ptree]") {
   output.writeToFile("images/render-kkkk.png");
 
   REQUIRE(output == source);
+}
+
+TEST_CASE("PTree::Prune_really_small", "[weight=1][part=ptree]") {
+  PNG source;
+  source.resize(2,1);
+
+  HSLAPixel* p00 = source.getPixel(0,0);
+  HSLAPixel* p10 = source.getPixel(1,0);
+  *p00 = HSLAPixel(0, 0.2, 0.4);
+  *p10 = HSLAPixel(0, 0.2, 0.4);
+
+  // since p00==p10, every node in tree must have same colour
+  PTree tree(source);
+
+  int treesize = tree.Size();
+  int treenumleaves = tree.NumLeaves();
+
+  REQUIRE(treesize == 3);
+  REQUIRE(treenumleaves == 2);
+
+  // since every node has same colour, should prune at the root
+  // and leave root only
+  tree.Prune(0.01);
+  treesize = tree.Size();
+  treenumleaves = tree.NumLeaves();
+
+  REQUIRE(treesize == 1);
+  REQUIRE(treenumleaves == 1);
 }
 
 TEST_CASE("PTree::Prune_small", "[weight=1][part=ptree]") {
