@@ -42,6 +42,30 @@ void AVLTree<K, V>::insert(Node*& subtree, const K& key, const V& value)
      * Case 3: (key, value) pair should be inserted into right subtree
      */
 
+    // case1
+    if (subtree == NULL) { 
+        Node* newNode = new Node(key, value);
+        subtree = newNode;
+        return;
+    } 
+    // item already exist
+    else if (subtree->key == key && subtree->value == value) {
+        return;
+    } 
+    // case2
+    else if (key < subtree->key) {
+        if (subtree->left == NULL) subtree->height++;
+        insert(subtree->left, key, value);
+    } 
+    // case3
+    else if (key >= subtree->key) {
+        if (subtree->right == NULL) subtree->height++;
+        insert(subtree->right, key, value);
+    }
+
+    // updateHeight of subtree
+    updateHeight(subtree);
+
     // Rebalance tree after insertion (don't remove this)
     rebalance(subtree);
 }
@@ -49,7 +73,25 @@ void AVLTree<K, V>::insert(Node*& subtree, const K& key, const V& value)
 template <class K, class V>
 void AVLTree<K, V>::updateHeight(Node* node)
 {
-    // TODO: your code here
+    // node has no child
+    if (node->left == NULL && node->right == NULL) {
+        node->height = 0;
+    }
+
+    // node has right child only
+    else if (node->left == NULL) {
+        node->height = node->right->height + 1;
+    }
+
+    // node has left child only
+    else if (node->right == NULL) {
+        node->height = node->left->height + 1;
+    }
+
+    // node has both child
+    else {
+        node->height = max(node->left->height, node->right->height) + 1;
+    }
 }
 
 template <class K, class V>
@@ -63,6 +105,8 @@ void AVLTree<K, V>::rotateLeft(Node*& t)
     t = newSubRoot;
 
     // TODO: update the heights for t->left and t (in that order)
+    updateHeight(t->left);
+    updateHeight(t);
 }
 
 template <class K, class V>
@@ -70,7 +114,13 @@ void AVLTree<K, V>::rotateRight(Node*& t)
 {
     *_out << __func__ << endl; // Outputs the rotation name (don't remove this)
 
-    // TODO: your code here
+    Node * newSubRoot = t->left;
+    t->left = newSubRoot->right;
+    newSubRoot->right = t;
+    t = newSubRoot;
+
+    updateHeight(t->right);
+    updateHeight(t);
 }
 
 template <class K, class V>
@@ -78,9 +128,8 @@ void AVLTree<K, V>::rotateLeftRight(Node*& t)
 {
     *_out << __func__ << endl; // Outputs the rotation name (don't remove this)
 
-    // TODO: your code here
-    // HINT: you should make use of the other functions defined in this file,
-    // instead of manually changing the pointers again
+    rotateLeft(t->left);
+    rotateRight(t);
 }
 
 template <class K, class V>
@@ -88,7 +137,8 @@ void AVLTree<K, V>::rotateRightLeft(Node*& t)
 {
     *_out << __func__ << endl; // Outputs the rotation name (don't remove this)
 
-   // TODO: your code here
+   rotateRight(t->right);
+   rotateLeft(t);
 }
 
 template <class K, class V>
@@ -100,7 +150,62 @@ void AVLTree<K, V>::rebalance(Node*& subtree)
       * Case 5: the tree is already balanced. You MUST still correctly update
       * subtree's height
       */
+    
+    if (subtree == NULL) {
+        return;
+    }
 
+    int rootBalance;
+    if (subtree->left == NULL) {
+        rootBalance = 0 - subtree->right->height - 1;
+    } else if (subtree->right == NULL) {
+        rootBalance = subtree->left->height + 1;
+    } else {
+        rootBalance = subtree->left->height - subtree->right->height;
+    }
+
+    // Case 5: no need to balance
+    if (abs(rootBalance) <= 1) {
+        return;
+    }
+
+    // Case 1: LL imbalance, Case 2: LR imbalance
+    if (subtree->left != NULL && rootBalance == 2) {
+        int leftBalance;
+        if (subtree->left->left == NULL) {
+            leftBalance = 0 - subtree->left->right->height - 1;
+        } else if (subtree->left->right == NULL) {
+            leftBalance = subtree->left->left->height + 1;
+        } else {
+            leftBalance = subtree->left->left->height - subtree->left->right->height;
+        }
+
+        if (leftBalance > 0) {
+            rotateRight(subtree);
+        } else if (leftBalance < 0) {
+            rotateLeftRight(subtree);
+        }
+    }
+
+    // Case 3: RR imbalance, Case 4: RL imbalance
+    if (subtree->right != NULL && rootBalance == -2) {
+        int rightBalance;
+        if (subtree->right->left == NULL) {
+            rightBalance = 0 - subtree->right->right->height - 1;
+        } else if (subtree->right->right == NULL) {
+            rightBalance = subtree->right->left->height + 1;
+        } else {
+            rightBalance = subtree->right->left->height - subtree->right->right->height;
+        }
+        
+        if (rightBalance < 0) {
+            rotateLeft(subtree);
+        } else if (rightBalance > 0) {
+            rotateRightLeft(subtree);
+        }
+    }
+
+    updateHeight(subtree);
 }
 
 template <class K, class V>
@@ -133,6 +238,24 @@ void AVLTree<K, V>::remove(Node*& subtree, const K& key)
              * should use the PREDECESSOR.
              */
 
+            Node* temp = subtree->left;
+            while (temp->right->right != NULL) {
+                temp = temp->right;
+            }
+
+            Node* predecessor = temp->right;
+
+            // copy key and value of predecessor
+            subtree->key = predecessor->key;
+            subtree->value = predecessor->value;
+
+            // connect possible child of predecessor to parent of predecessor
+            temp->right = predecessor->left;
+            updateHeight(temp);
+
+            delete predecessor;
+            predecessor = NULL;
+
         } else {
             /* Case 3: Node to remove has one child */
             Node* curr = subtree;
@@ -140,5 +263,6 @@ void AVLTree<K, V>::remove(Node*& subtree, const K& key)
             delete curr;
         }
     }
+    updateHeight(subtree);
     rebalance(subtree);
 }
